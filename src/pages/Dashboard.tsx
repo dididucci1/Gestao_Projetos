@@ -2,6 +2,7 @@ import {
   TrendingUp,
   TrendingDown,
   FolderKanban,
+  Users,
   CheckCircle,
   AlertCircle,
   Clock,
