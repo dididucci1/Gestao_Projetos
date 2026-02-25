@@ -7,18 +7,23 @@ import {
   AlertCircle,
   Clock,
 } from 'lucide-react';
-import { mockProjects, mockTasks, mockActivities, mockUsers } from '../mockData';
+import { loadActivities, loadProjects, loadTasks, loadUsers } from '../storage';
 
 export default function Dashboard() {
-  const totalProjects = mockProjects.length;
-  const activeProjects = mockProjects.filter((p) => p.status === 'Em execução').length;
-  const delayedProjects = mockProjects.filter(
+  const projects = loadProjects();
+  const tasks = loadTasks();
+  const activities = loadActivities();
+  const users = loadUsers();
+
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter((p) => p.status === 'Em execução').length;
+  const delayedProjects = projects.filter(
     (p) => new Date(p.endDate) < new Date() && p.status !== 'Concluído'
   ).length;
 
-  const totalTasks = mockTasks.length;
-  const completedTasks = mockTasks.filter((t) => t.status === 'Concluído').length;
-  const delayedTasks = mockTasks.filter(
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter((t) => t.status === 'Concluído').length;
+  const delayedTasks = tasks.filter(
     (t) => new Date(t.dueDate) < new Date() && t.status !== 'Concluído'
   ).length;
 
@@ -55,8 +60,8 @@ export default function Dashboard() {
     },
     {
       label: 'Membros da Equipe',
-      value: mockUsers.filter((u) => u.role !== 'Cliente').length,
-      total: mockUsers.length,
+      value: users.filter((u) => u.role !== 'Cliente').length,
+      total: users.length,
       icon: Users,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
@@ -115,7 +120,7 @@ export default function Dashboard() {
             <h2 className="text-lg font-semibold text-gray-900">Projetos em Andamento</h2>
           </div>
           <div className="p-6 space-y-4">
-            {mockProjects
+            {projects
               .filter((p) => p.status === 'Em execução')
               .map((project) => (
                 <div key={project.id} className="space-y-2">
@@ -147,7 +152,7 @@ export default function Dashboard() {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {mockActivities.slice(0, 5).map((activity) => (
+              {activities.slice(0, 5).map((activity) => (
                 <div key={activity.id} className="flex space-x-3">
                   <div className="flex-shrink-0">
                     <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
@@ -166,6 +171,9 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
+            {activities.length === 0 && (
+              <p className="text-sm text-gray-500">Sem atividades registradas.</p>
+            )}
           </div>
         </div>
       </div>

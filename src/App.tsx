@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
@@ -9,6 +10,13 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
 function App() {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('maze-theme') || 'green';
+    const root = document.documentElement;
+    root.classList.remove('theme-green', 'theme-dark', 'theme-blue');
+    root.classList.add(`theme-${savedTheme}`);
+  }, []);
+
   return (
     <Router>
       <Layout>

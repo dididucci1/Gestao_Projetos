@@ -1,272 +1,290 @@
 import { useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { mockProjects, mockTasks, mockUsers } from '../mockData';
+import { loadProjects, loadTasks, loadUsers } from '../storage';
 
 export default function Timeline() {
-  const [viewMode, setViewMode] = useState<'gantt' | 'calendario'>('gantt');
   const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [projects] = useState(() => loadProjects());
+  const [tasks] = useState(() => loadTasks());
+  const [users] = useState(() => loadUsers());
 
-  // Função para calcular dias entre datas
-  const getDaysBetween = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  const isSameDay = (dateA: Date, dateB: Date) =>
+    dateA.getDate() === dateB.getDate() &&
+    dateA.getMonth() === dateB.getMonth() &&
+    dateA.getFullYear() === dateB.getFullYear();
+
+  const getTasksForDate = (date: Date) => {
+    return tasks.filter((task) => isSameDay(new Date(task.dueDate), date));
   };
 
-  // Função para calcular posição no Gantt
-  const getGanttPosition = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const today = new Date();
-    const yearStart = new Date(today.getFullYear(), 0, 1);
-    
-    const daysFromYearStart = Math.floor((start.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24));
-    const duration = getDaysBetween(startDate, endDate);
-    
-    return { left: `${(daysFromYearStart / 365) * 100}%`, width: `${(duration / 365) * 100}%` };
+  const getMilestonesForDate = (date: Date) => {
+    return projects.filter((project) => isSameDay(new Date(project.endDate), date));
   };
 
-  const months = [
-    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-  ];
+  const getPriorityTag = (priority: string) => {
+    const colors = {
+      Baixa: 'bg-gray-100 text-gray-700',
+      Média: 'bg-blue-100 text-blue-700',
+      Alta: 'bg-orange-100 text-orange-700',
+      Urgente: 'bg-red-100 text-red-700',
+    };
+    return colors[priority as keyof typeof colors] ?? 'bg-gray-100 text-gray-700';
+  };
+
+  const getStatusDot = (status: string) => {
+    const colors = {
+      'A fazer': 'bg-gray-400',
+      'Em progresso': 'bg-blue-500',
+      'Em revisão': 'bg-yellow-500',
+      Concluído: 'bg-green-500',
+      Bloqueado: 'bg-red-500',
+    };
+    return colors[status as keyof typeof colors] ?? 'bg-gray-400';
+  };
+
+  const getCalendarDays = () => {
+    const year = selectedMonth.getFullYear();
+    const month = selectedMonth.getMonth();
+    const firstDayOfMonth = new Date(year, month, 1);
+    const firstWeekDay = firstDayOfMonth.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPreviousMonth = new Date(year, month, 0).getDate();
+
+    const calendarDays: { date: Date; isCurrentMonth: boolean }[] = [];
+
+    for (let i = firstWeekDay - 1; i >= 0; i--) {
+      calendarDays.push({
+        date: new Date(year, month - 1, daysInPreviousMonth - i),
+        isCurrentMonth: false,
+      });
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      calendarDays.push({
+        date: new Date(year, month, day),
+        isCurrentMonth: true,
+      });
+    }
+
+    const remainingDays = 42 - calendarDays.length;
+    for (let day = 1; day <= remainingDays; day++) {
+      calendarDays.push({
+        date: new Date(year, month + 1, day),
+        isCurrentMonth: false,
+      });
+    }
+
+    return calendarDays;
+  };
+
+  const selectedDateTasks = selectedDate ? getTasksForDate(selectedDate) : [];
+  const selectedDateMilestones = selectedDate ? getMilestonesForDate(selectedDate) : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Cronograma</h1>
-          <p className="text-gray-600 mt-1">Visualize o timeline dos projetos e tarefas</p>
-        </div>
-        <div className="flex bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('gantt')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              viewMode === 'gantt' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
-            }`}
-          >
-            Gantt
-          </button>
-          <button
-            onClick={() => setViewMode('calendario')}
-            className={`px-4 py-2 rounded-md transition-colors ${
-              viewMode === 'calendario' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
-            }`}
-          >
-            Calendário
-          </button>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Cronograma</h1>
+        <p className="text-gray-600 mt-1">Calendário mensal de projetos e tarefas</p>
       </div>
 
-      {/* Gantt View */}
-      {viewMode === 'gantt' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Gráfico de Gantt - 2026</h2>
-            
-            {/* Timeline Header */}
-            <div className="flex border-b border-gray-200 pb-2 mb-4">
-              <div className="w-64 font-medium text-gray-700">Projeto</div>
-              <div className="flex-1 flex justify-between px-4">
-                {months.map((month) => (
-                  <div key={month} className="text-xs text-gray-500 text-center" style={{ width: '8.33%' }}>
-                    {month}
-                  </div>
-                ))}
+      {/* Calendar View */}
+      <>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                {selectedMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+              </h2>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    const newDate = new Date(selectedMonth);
+                    newDate.setMonth(newDate.getMonth() - 1);
+                    setSelectedMonth(newDate);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() => {
+                    const newDate = new Date(selectedMonth);
+                    newDate.setMonth(newDate.getMonth() + 1);
+                    setSelectedMonth(newDate);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+                <button
+                  onClick={() => setSelectedMonth(new Date())}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hoje
+                </button>
               </div>
             </div>
 
-            {/* Projects Timeline */}
-            <div className="space-y-4">
-              {mockProjects.map((project) => {
-                const position = getGanttPosition(project.startDate, project.endDate);
+            <div className="grid grid-cols-7 gap-2 mb-1">
+              {weekDays.map((day) => (
+                <div key={day} className="text-xs font-semibold text-gray-500 uppercase text-center py-1">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-2">
+              {getCalendarDays().map(({ date, isCurrentMonth }) => {
+                const tasksForDay = getTasksForDate(date);
+                const milestonesForDay = getMilestonesForDate(date);
+                const isToday = isSameDay(date, new Date());
+                const isSelected = selectedDate ? isSameDay(date, selectedDate) : false;
+
                 return (
-                  <div key={project.id} className="flex items-center">
-                    <div className="w-64">
-                      <div className="font-medium text-gray-900 text-sm">{project.name}</div>
-                      <div className="text-xs text-gray-500">{project.client}</div>
+                  <button
+                    key={date.toISOString()}
+                    onClick={() => setSelectedDate(date)}
+                    className={`text-left h-20 p-1.5 rounded-lg border transition-colors overflow-hidden ${
+                      isSelected
+                        ? 'border-primary-400 bg-primary-50'
+                        : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span
+                        className={`text-xs font-medium ${
+                          isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
+                        }`}
+                      >
+                        {date.getDate()}
+                      </span>
+                      {isToday && <span className="w-2 h-2 rounded-full bg-primary-600" />}
                     </div>
-                    <div className="flex-1 relative h-10 px-4">
-                      <div className="absolute inset-0 flex items-center">
+
+                    <div className="space-y-1">
+                      {tasksForDay.slice(0, 1).map((task) => (
+                        <div key={task.id} className="text-xs bg-white border border-gray-200 rounded px-2 py-1 truncate">
+                          <span className={`inline-block w-2 h-2 rounded-full mr-1 ${getStatusDot(task.status)}`} />
+                          {task.title}
+                        </div>
+                      ))}
+
+                      {tasksForDay.length === 0 && milestonesForDay.slice(0, 1).map((project) => (
                         <div
-                          className={`h-8 rounded-lg relative ${
-                            project.status === 'Concluído'
-                              ? 'bg-green-500'
-                              : project.status === 'Em execução'
-                              ? 'bg-primary-500'
-                              : 'bg-blue-500'
-                          }`}
-                          style={{ ...position, minWidth: '40px' }}
+                          key={project.id}
+                          className="text-xs bg-primary-100 text-primary-700 rounded px-2 py-1 truncate"
                         >
-                          <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-medium px-2">
-                            {project.progress}%
+                          Entrega: {project.name}
+                        </div>
+                      ))}
+
+                      {tasksForDay.length + milestonesForDay.length > 1 && (
+                        <div className="text-xs text-gray-500">
+                          +{tasksForDay.length + milestonesForDay.length - 1} mais
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+        </div>
+
+        {selectedDate && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Detalhes do Dia</h2>
+                  <p className="text-gray-600 mt-1">
+                    {selectedDate.toLocaleDateString('pt-BR', {
+                      weekday: 'long',
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Tarefas do Dia</h3>
+                  {selectedDateTasks.length === 0 ? (
+                    <p className="text-gray-500">Nenhuma tarefa com prazo para este dia.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedDateTasks.map((task) => {
+                        const project = projects.find((p) => p.id === task.projectId);
+                        const assignee = users.find((u) => u.id === task.assignee);
+                        return (
+                          <div key={task.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h4 className="font-medium text-gray-900">{task.title}</h4>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {project?.name} • {assignee?.name}
+                                </p>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityTag(task.priority)}`}>
+                                  {task.priority}
+                                </span>
+                                <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                  {task.status}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">{task.description}</p>
                           </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Marcos de Projeto</h3>
+                  {selectedDateMilestones.length === 0 ? (
+                    <p className="text-gray-500">Nenhum marco de projeto para este dia.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedDateMilestones.map((project) => (
+                        <div key={project.id} className="flex items-center space-x-3 p-3 bg-primary-50 rounded-lg">
+                          <Calendar className="text-primary-600" size={18} />
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">{project.name}</div>
+                            <div className="text-sm text-gray-600">Cliente: {project.client}</div>
+                          </div>
+                          <span className="text-sm font-medium text-primary-700">{project.status}</span>
                         </div>
-                      </div>
-                      {/* Grid lines */}
-                      {months.map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute top-0 bottom-0 border-l border-gray-100"
-                          style={{ left: `${(i / 12) * 100}%` }}
-                        />
                       ))}
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  )}
+                </div>
+              </div>
 
-          {/* Tasks Timeline */}
-          <div className="border-t border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Tarefas Principais</h2>
-            <div className="space-y-2">
-              {mockTasks.slice(0, 5).map((task) => {
-                const project = mockProjects.find((p) => p.id === task.projectId);
-                const assignee = mockUsers.find((u) => u.id === task.assignee);
-                const position = getGanttPosition(project?.startDate || task.dueDate, task.dueDate);
-                
-                return (
-                  <div key={task.id} className="flex items-center text-sm">
-                    <div className="w-64">
-                      <div className="text-gray-900">{task.title}</div>
-                      <div className="text-xs text-gray-500">{assignee?.name}</div>
-                    </div>
-                    <div className="flex-1 relative h-8 px-4">
-                      <div className="absolute inset-0 flex items-center">
-                        <div
-                          className={`h-6 rounded ${
-                            task.status === 'Concluído'
-                              ? 'bg-green-400'
-                              : task.status === 'Em progresso'
-                              ? 'bg-blue-400'
-                              : task.status === 'Bloqueado'
-                              ? 'bg-red-400'
-                              : 'bg-gray-400'
-                          }`}
-                          style={{ ...position, minWidth: '20px' }}
-                        />
-                      </div>
-                      {months.map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute top-0 bottom-0 border-l border-gray-100"
-                          style={{ left: `${(i / 12) * 100}%` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+              <div className="p-6 border-t border-gray-200 flex justify-end">
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Calendar View */}
-      {viewMode === 'calendario' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {selectedMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-            </h2>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => {
-                  const newDate = new Date(selectedMonth);
-                  newDate.setMonth(newDate.getMonth() - 1);
-                  setSelectedMonth(newDate);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <button
-                onClick={() => {
-                  const newDate = new Date(selectedMonth);
-                  newDate.setMonth(newDate.getMonth() + 1);
-                  setSelectedMonth(newDate);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ChevronRight size={20} />
-              </button>
-            </div>
-          </div>
-
-          {/* Milestones */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Marcos do Mês</h3>
-            <div className="space-y-2">
-              {mockProjects
-                .filter((p) => {
-                  const endDate = new Date(p.endDate);
-                  return (
-                    endDate.getMonth() === selectedMonth.getMonth() &&
-                    endDate.getFullYear() === selectedMonth.getFullYear()
-                  );
-                })
-                .map((project) => (
-                  <div key={project.id} className="flex items-center space-x-3 p-3 bg-primary-50 rounded-lg">
-                    <Calendar className="text-primary-600" size={20} />
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{project.name}</div>
-                      <div className="text-sm text-gray-600">
-                        Prazo final: {new Date(project.endDate).toLocaleDateString('pt-BR')}
-                      </div>
-                    </div>
-                    <span className="text-sm font-medium text-primary-600">{project.status}</span>
-                  </div>
-                ))}
-            </div>
-          </div>
-
-          {/* Deadlines */}
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Prazos de Tarefas</h3>
-            <div className="space-y-2">
-              {mockTasks
-                .filter((t) => {
-                  const dueDate = new Date(t.dueDate);
-                  return (
-                    dueDate.getMonth() === selectedMonth.getMonth() &&
-                    dueDate.getFullYear() === selectedMonth.getFullYear()
-                  );
-                })
-                .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-                .map((task) => {
-                  const project = mockProjects.find((p) => p.id === task.projectId);
-                  const assignee = mockUsers.find((u) => u.id === task.assignee);
-                  const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'Concluído';
-                  
-                  return (
-                    <div
-                      key={task.id}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border ${
-                        isOverdue ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
-                      }`}
-                    >
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{task.title}</div>
-                        <div className="text-sm text-gray-600">
-                          {project?.name} • {assignee?.name}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-sm font-medium ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
-                          {new Date(task.dueDate).toLocaleDateString('pt-BR')}
-                        </div>
-                        <div className="text-xs text-gray-500">{task.status}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </>
     </div>
   );
 }

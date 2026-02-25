@@ -1,13 +1,30 @@
 import { useState } from 'react';
 import { Plus, Search, MessageSquare, Paperclip, AlertCircle } from 'lucide-react';
-import { mockTasks, mockProjects, mockUsers } from '../mockData';
 import { Task, TaskStatus, TaskPriority } from '../types';
+import { loadProjects, loadTasks, loadUsers, saveTasks } from '../storage';
+import { useEffect } from 'react';
 
 export default function Tasks() {
-  const [tasks] = useState<Task[]>(mockTasks);
+  const [projects] = useState(() => loadProjects());
+  const [users] = useState(() => loadUsers());
+
+  const getInitialNewTask = () => ({
+    title: '',
+    description: '',
+    projectId: projects[0]?.id ?? '',
+    assignee: users.find((user) => user.role !== 'Cliente')?.id ?? '',
+    dueDate: new Date().toISOString().split('T')[0],
+    priority: 'Média' as TaskPriority,
+    status: 'A fazer' as TaskStatus,
+    subtasks: [] as { id: string; title: string }[],
+  });
+
+  const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [newTask, setNewTask] = useState(getInitialNewTask);
 
   const filteredTasks = tasks.filter(
     (task) =>
@@ -42,6 +59,127 @@ export default function Tasks() {
 
   const kanbanColumns: TaskStatus[] = ['A fazer', 'Em progresso', 'Em revisão', 'Concluído', 'Bloqueado'];
 
+  const selectedTask = selectedTaskId ? tasks.find((task) => task.id === selectedTaskId) ?? null : null;
+
+  const updateTask = (taskId: string, updates: Partial<Task>) => {
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === taskId ? { ...task, ...updates } : task))
+    );
+  };
+
+  const resetNewTaskForm = () => {
+    setNewTask(getInitialNewTask());
+  };
+
+  useEffect(() => {
+    saveTasks(tasks);
+  }, [tasks]);
+
+  const handleAddSubtaskField = () => {
+    setNewTask((currentTask) => ({
+      ...currentTask,
+      subtasks: [...currentTask.subtasks, { id: String(Date.now() + Math.random()), title: '' }],
+    }));
+  };
+
+  const handleSubtaskTitleChange = (subtaskId: string, title: string) => {
+    setNewTask((currentTask) => ({
+      ...currentTask,
+      subtasks: currentTask.subtasks.map((subtask) =>
+        subtask.id === subtaskId ? { ...subtask, title } : subtask
+      ),
+    }));
+  };
+
+  const handleRemoveSubtaskField = (subtaskId: string) => {
+    setNewTask((currentTask) => ({
+      ...currentTask,
+      subtasks: currentTask.subtasks.filter((subtask) => subtask.id !== subtaskId),
+    }));
+  };
+
+  const handleCreateTask = () => {
+    if (!newTask.title.trim()) {
+      return;
+    }
+
+    const progress = newTask.status === 'Concluído' ? 100 : 0;
+    const formattedSubtasks = newTask.subtasks
+      .filter((subtask) => subtask.title.trim().length > 0)
+      .map((subtask) => ({
+        id: subtask.id,
+        title: subtask.title.trim(),
+        completed: false,
+      }));
+
+    const task: Task = {
+      id: String(Date.now()),
+      projectId: newTask.projectId,
+      title: newTask.title.trim(),
+      description: newTask.description.trim(),
+      assignee: newTask.assignee,
+      dueDate: newTask.dueDate,
+      priority: newTask.priority,
+      status: newTask.status,
+      progress,
+      dependencies: [],
+      subtasks: formattedSubtasks,
+      comments: [],
+      attachments: [],
+      estimatedHours: 0,
+      actualHours: 0,
+    };
+
+    setTasks((currentTasks) => [task, ...currentTasks]);
+    setShowCreateModal(false);
+    resetNewTaskForm();
+  };
+
+  const handleStatusChange = (taskId: string, status: TaskStatus) => {
+    const currentTask = tasks.find((task) => task.id === taskId);
+    if (!currentTask) {
+      return;
+    }
+
+    const progress = status === 'Concluído' ? 100 : currentTask.progress;
+    updateTask(taskId, { status, progress });
+  };
+
+  const handleProgressChange = (taskId: string, progress: number) => {
+    const currentTask = tasks.find((task) => task.id === taskId);
+    if (!currentTask) {
+      return;
+    }
+
+    let status = currentTask.status;
+    if (progress === 100) {
+      status = 'Concluído';
+    } else if (currentTask.status === 'Concluído') {
+      status = 'Em progresso';
+    }
+
+    updateTask(taskId, { progress, status });
+  };
+
+  const toggleSubtask = (taskId: string, subtaskId: string) => {
+    const task = tasks.find((currentTask) => currentTask.id === taskId);
+    if (!task) {
+      return;
+    }
+
+    const updatedSubtasks = task.subtasks.map((subtask) =>
+      subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask
+    );
+
+    const completedSubtasks = updatedSubtasks.filter((subtask) => subtask.completed).length;
+    const progress = updatedSubtasks.length > 0
+      ? Math.round((completedSubtasks / updatedSubtasks.length) * 100)
+      : task.progress;
+
+    const status: TaskStatus = progress === 100 ? 'Concluído' : task.status;
+    updateTask(taskId, { subtasks: updatedSubtasks, progress, status });
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -69,7 +207,10 @@ export default function Tasks() {
               Kanban
             </button>
           </div>
-          <button className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors"
+          >
             <Plus size={20} />
             <span>Nova Tarefa</span>
           </button>
@@ -122,14 +263,14 @@ export default function Tasks() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredTasks.map((task) => {
-                  const project = mockProjects.find((p) => p.id === task.projectId);
-                  const assignee = mockUsers.find((u) => u.id === task.assignee);
+                  const project = projects.find((p) => p.id === task.projectId);
+                  const assignee = users.find((u) => u.id === task.assignee);
                   const overdue = isOverdue(task.dueDate, task.status);
 
                   return (
                     <tr
                       key={task.id}
-                      onClick={() => setSelectedTask(task)}
+                      onClick={() => setSelectedTaskId(task.id)}
                       className="hover:bg-gray-50 cursor-pointer transition-colors"
                     >
                       <td className="px-6 py-4">
@@ -209,14 +350,14 @@ export default function Tasks() {
                 </div>
                 <div className="space-y-3">
                   {columnTasks.map((task) => {
-                    const project = mockProjects.find((p) => p.id === task.projectId);
-                    const assignee = mockUsers.find((u) => u.id === task.assignee);
+                    const project = projects.find((p) => p.id === task.projectId);
+                    const assignee = users.find((u) => u.id === task.assignee);
                     const overdue = isOverdue(task.dueDate, task.status);
 
                     return (
                       <div
                         key={task.id}
-                        onClick={() => setSelectedTask(task)}
+                        onClick={() => setSelectedTaskId(task.id)}
                         className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
                       >
                         <div className="flex items-start justify-between mb-2">
@@ -235,7 +376,7 @@ export default function Tasks() {
                         </div>
                         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                           <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                            {assignee?.name.split(' ').map((n) => n[0]).join('')}
+                            {assignee?.name?.split(' ').map((n) => n[0]).join('') || '--'}
                           </div>
                           <div className="flex items-center space-x-2 text-xs text-gray-500">
                             {task.comments.length > 0 && (
@@ -279,7 +420,7 @@ export default function Tasks() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedTask(null)}
+                  onClick={() => setSelectedTaskId(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   ✕
@@ -287,6 +428,37 @@ export default function Tasks() {
               </div>
             </div>
             <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={selectedTask.status}
+                    onChange={(e) => handleStatusChange(selectedTask.id, e.target.value as TaskStatus)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="A fazer">A fazer</option>
+                    <option value="Em progresso">Em progresso</option>
+                    <option value="Em revisão">Em revisão</option>
+                    <option value="Concluído">Concluído</option>
+                    <option value="Bloqueado">Bloqueado</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Progresso</label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={selectedTask.progress}
+                      onChange={(e) => handleProgressChange(selectedTask.id, Number(e.target.value))}
+                      className="w-full"
+                    />
+                    <span className="text-sm font-medium text-gray-900 w-12 text-right">{selectedTask.progress}%</span>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <h3 className="font-semibold text-gray-900 mb-2">Descrição</h3>
                 <p className="text-gray-600">{selectedTask.description}</p>
@@ -295,7 +467,7 @@ export default function Tasks() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-2">Responsável</h3>
-                  <p className="text-gray-600">{mockUsers.find((u) => u.id === selectedTask.assignee)?.name}</p>
+                  <p className="text-gray-600">{users.find((u) => u.id === selectedTask.assignee)?.name}</p>
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-2">Prazo</h3>
@@ -315,7 +487,7 @@ export default function Tasks() {
                         <input
                           type="checkbox"
                           checked={subtask.completed}
-                          readOnly
+                          onChange={() => toggleSubtask(selectedTask.id, subtask.id)}
                           className="rounded text-primary-600"
                         />
                         <span className={subtask.completed ? 'line-through text-gray-500' : 'text-gray-900'}>
@@ -370,10 +542,177 @@ export default function Tasks() {
             </div>
             <div className="p-6 border-t border-gray-200 flex justify-end">
               <button
-                onClick={() => setSelectedTask(null)}
+                onClick={() => setSelectedTaskId(null)}
                 className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Task Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Nova Tarefa</h2>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Título</label>
+                <input
+                  type="text"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Descrição</label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Projeto</label>
+                  <select
+                    value={newTask.projectId}
+                    onChange={(e) => setNewTask({ ...newTask, projectId: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    {projects.length === 0 && <option value="">Nenhum projeto cadastrado</option>}
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Responsável</label>
+                  <select
+                    value={newTask.assignee}
+                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    {users.filter((user) => user.role !== 'Cliente').length === 0 && (
+                      <option value="">Nenhum membro disponível</option>
+                    )}
+                    {users.filter((user) => user.role !== 'Cliente').map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prazo</label>
+                  <input
+                    type="date"
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask({ ...newTask, dueDate: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prioridade</label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as TaskPriority })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="Baixa">Baixa</option>
+                    <option value="Média">Média</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={newTask.status}
+                    onChange={(e) => setNewTask({ ...newTask, status: e.target.value as TaskStatus })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="A fazer">A fazer</option>
+                    <option value="Em progresso">Em progresso</option>
+                    <option value="Em revisão">Em revisão</option>
+                    <option value="Concluído">Concluído</option>
+                    <option value="Bloqueado">Bloqueado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Subtarefas</label>
+                  <button
+                    type="button"
+                    onClick={handleAddSubtaskField}
+                    className="inline-flex items-center space-x-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <Plus size={14} />
+                    <span>Adicionar</span>
+                  </button>
+                </div>
+
+                {newTask.subtasks.length === 0 ? (
+                  <p className="text-sm text-gray-500">Clique no + para adicionar uma subtarefa.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {newTask.subtasks.map((subtask, index) => (
+                      <div key={subtask.id} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={subtask.title}
+                          onChange={(e) => handleSubtaskTitleChange(subtask.id, e.target.value)}
+                          placeholder={`Subtarefa ${index + 1}`}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSubtaskField(subtask.id)}
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex justify-end space-x-4">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  resetNewTaskForm();
+                }}
+                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateTask}
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                Criar Tarefa
               </button>
             </div>
           </div>

@@ -3,6 +3,9 @@ import { User, Lock, Bell, Shield, Palette, Save } from 'lucide-react';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications' | 'permissions' | 'appearance'>('profile');
+  const [selectedTheme, setSelectedTheme] = useState<'green' | 'dark' | 'blue'>(
+    (localStorage.getItem('maze-theme') as 'green' | 'dark' | 'blue') || 'green'
+  );
 
   const tabs = [
     { id: 'profile' as const, icon: User, label: 'Perfil' },
@@ -11,6 +14,22 @@ export default function Settings() {
     { id: 'permissions' as const, icon: Shield, label: 'Permissões' },
     { id: 'appearance' as const, icon: Palette, label: 'Aparência' },
   ];
+
+  const applyTheme = (theme: 'green' | 'dark' | 'blue') => {
+    const root = document.documentElement;
+    root.classList.remove('theme-green', 'theme-dark', 'theme-blue');
+    root.classList.add(`theme-${theme}`);
+  };
+
+  const handleThemeSelect = (theme: 'green' | 'dark' | 'blue') => {
+    setSelectedTheme(theme);
+    applyTheme(theme);
+  };
+
+  const handleSaveAppearance = () => {
+    localStorage.setItem('maze-theme', selectedTheme);
+    applyTheme(selectedTheme);
+  };
 
   return (
     <div className="space-y-6">
@@ -305,30 +324,45 @@ export default function Settings() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">Tema de Cores</label>
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="border-2 border-primary-600 rounded-lg p-4 cursor-pointer">
+                      <button
+                        onClick={() => handleThemeSelect('green')}
+                        className={`border-2 rounded-lg p-4 text-left transition-colors ${
+                          selectedTheme === 'green' ? 'border-primary-600' : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
                         <div className="flex items-center space-x-2 mb-2">
                           <div className="w-6 h-6 bg-white border-2 border-gray-300 rounded"></div>
                           <div className="w-6 h-6 bg-primary-600 rounded"></div>
                         </div>
                         <p className="text-sm font-medium text-gray-900">Branco e Verde</p>
-                        <p className="text-xs text-gray-600">Atual</p>
-                      </div>
-                      <div className="border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-gray-400">
+                        <p className="text-xs text-gray-600">{selectedTheme === 'green' ? 'Selecionado' : 'Disponível'}</p>
+                      </button>
+                      <button
+                        onClick={() => handleThemeSelect('dark')}
+                        className={`border-2 rounded-lg p-4 text-left transition-colors ${
+                          selectedTheme === 'dark' ? 'border-primary-600' : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
                         <div className="flex items-center space-x-2 mb-2">
                           <div className="w-6 h-6 bg-gray-800 rounded"></div>
                           <div className="w-6 h-6 bg-primary-600 rounded"></div>
                         </div>
                         <p className="text-sm font-medium text-gray-900">Modo Escuro</p>
-                        <p className="text-xs text-gray-600">Em breve</p>
-                      </div>
-                      <div className="border-2 border-gray-200 rounded-lg p-4 cursor-pointer hover:border-gray-400">
+                        <p className="text-xs text-gray-600">{selectedTheme === 'dark' ? 'Selecionado' : 'Disponível'}</p>
+                      </button>
+                      <button
+                        onClick={() => handleThemeSelect('blue')}
+                        className={`border-2 rounded-lg p-4 text-left transition-colors ${
+                          selectedTheme === 'blue' ? 'border-primary-600' : 'border-gray-200 hover:border-gray-400'
+                        }`}
+                      >
                         <div className="flex items-center space-x-2 mb-2">
                           <div className="w-6 h-6 bg-white border-2 border-gray-300 rounded"></div>
                           <div className="w-6 h-6 bg-blue-600 rounded"></div>
                         </div>
                         <p className="text-sm font-medium text-gray-900">Branco e Azul</p>
-                        <p className="text-xs text-gray-600">Em breve</p>
-                      </div>
+                        <p className="text-xs text-gray-600">{selectedTheme === 'blue' ? 'Selecionado' : 'Disponível'}</p>
+                      </button>
                     </div>
                   </div>
                   <div className="border-t border-gray-200 pt-4">
@@ -349,7 +383,10 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
-              <button className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors">
+              <button
+                onClick={handleSaveAppearance}
+                className="flex items-center space-x-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors"
+              >
                 <Save size={20} />
                 <span>Salvar Aparência</span>
               </button>

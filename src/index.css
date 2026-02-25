@@ -15,3 +15,115 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+html.theme-green {
+  color-scheme: light;
+}
+
+html.theme-dark {
+  color-scheme: dark;
+}
+
+html.theme-dark body {
+  background-color: #0f172a;
+  color: #e5e7eb;
+}
+
+html.theme-dark .bg-white {
+  background-color: #111827 !important;
+}
+
+html.theme-dark .bg-gray-50 {
+  background-color: #1f2937 !important;
+}
+
+html.theme-dark .bg-gray-100 {
+  background-color: #374151 !important;
+}
+
+html.theme-dark .text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+html.theme-dark .text-gray-800,
+html.theme-dark .text-gray-700 {
+  color: #e5e7eb !important;
+}
+
+html.theme-dark .text-gray-600 {
+  color: #d1d5db !important;
+}
+
+html.theme-dark .text-gray-500,
+html.theme-dark .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+html.theme-dark .border-gray-200 {
+  border-color: #374151 !important;
+}
+
+html.theme-dark .border-gray-300 {
+  border-color: #4b5563 !important;
+}
+
+html.theme-dark .hover\:bg-gray-50:hover,
+html.theme-dark .hover\:bg-gray-100:hover,
+html.theme-dark .hover\:bg-gray-200:hover {
+  background-color: #374151 !important;
+}
+
+html.theme-dark input,
+html.theme-dark select,
+html.theme-dark textarea {
+  background-color: #111827;
+  color: #f3f4f6;
+}
+
+html.theme-blue {
+  color-scheme: light;
+}
+
+html.theme-blue .bg-primary-50 {
+  background-color: #eff6ff !important;
+}
+
+html.theme-blue .bg-primary-100 {
+  background-color: #dbeafe !important;
+}
+
+html.theme-blue .bg-primary-500 {
+  background-color: #3b82f6 !important;
+}
+
+html.theme-blue .bg-primary-600 {
+  background-color: #2563eb !important;
+}
+
+html.theme-blue .bg-primary-700 {
+  background-color: #1d4ed8 !important;
+}
+
+html.theme-blue .hover\:bg-primary-700:hover {
+  background-color: #1d4ed8 !important;
+}
+
+html.theme-blue .text-primary-600 {
+  color: #2563eb !important;
+}
+
+html.theme-blue .text-primary-700 {
+  color: #1d4ed8 !important;
+}
+
+html.theme-blue .border-primary-400 {
+  border-color: #60a5fa !important;
+}
+
+html.theme-blue .border-primary-600 {
+  border-color: #2563eb !important;
+}
+
+html.theme-blue .focus\:ring-primary-500:focus {
+  --tw-ring-color: #3b82f6 !important;
+}

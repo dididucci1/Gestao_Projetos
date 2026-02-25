@@ -7,43 +7,46 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';
-import { mockProjects, mockTasks, mockUsers } from '../mockData';
+import { loadProjects, loadTasks, loadUsers } from '../storage';
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState('month');
+  const projects = loadProjects();
+  const tasks = loadTasks();
+  const users = loadUsers();
 
   // Cálculos para relatórios
-  const totalProjects = mockProjects.length;
-  const activeProjects = mockProjects.filter((p) => p.status === 'Em execução').length;
-  const completedProjects = mockProjects.filter((p) => p.status === 'Concluído').length;
-  const delayedProjects = mockProjects.filter(
+  const totalProjects = projects.length;
+  const activeProjects = projects.filter((p) => p.status === 'Em execução').length;
+  const completedProjects = projects.filter((p) => p.status === 'Concluído').length;
+  const delayedProjects = projects.filter(
     (p) => new Date(p.endDate) < new Date() && p.status !== 'Concluído'
   ).length;
 
-  const totalBudget = mockProjects.reduce((acc, p) => acc + (p.budget || 0), 0);
-  const totalSpent = mockProjects.reduce((acc, p) => acc + (p.actualCost || 0), 0);
+  const totalBudget = projects.reduce((acc, p) => acc + (p.budget || 0), 0);
+  const totalSpent = projects.reduce((acc, p) => acc + (p.actualCost || 0), 0);
   const totalSavings = totalBudget - totalSpent;
 
   const tasksByStatus = {
-    'A fazer': mockTasks.filter((t) => t.status === 'A fazer').length,
-    'Em progresso': mockTasks.filter((t) => t.status === 'Em progresso').length,
-    'Em revisão': mockTasks.filter((t) => t.status === 'Em revisão').length,
-    Concluído: mockTasks.filter((t) => t.status === 'Concluído').length,
-    Bloqueado: mockTasks.filter((t) => t.status === 'Bloqueado').length,
+    'A fazer': tasks.filter((t) => t.status === 'A fazer').length,
+    'Em progresso': tasks.filter((t) => t.status === 'Em progresso').length,
+    'Em revisão': tasks.filter((t) => t.status === 'Em revisão').length,
+    Concluído: tasks.filter((t) => t.status === 'Concluído').length,
+    Bloqueado: tasks.filter((t) => t.status === 'Bloqueado').length,
   };
 
   const projectsByStatus = {
-    Planejamento: mockProjects.filter((p) => p.status === 'Planejamento').length,
-    'Em execução': mockProjects.filter((p) => p.status === 'Em execução').length,
-    Concluído: mockProjects.filter((p) => p.status === 'Concluído').length,
-    Pausado: mockProjects.filter((p) => p.status === 'Pausado').length,
-    Cancelado: mockProjects.filter((p) => p.status === 'Cancelado').length,
+    Planejamento: projects.filter((p) => p.status === 'Planejamento').length,
+    'Em execução': projects.filter((p) => p.status === 'Em execução').length,
+    Concluído: projects.filter((p) => p.status === 'Concluído').length,
+    Pausado: projects.filter((p) => p.status === 'Pausado').length,
+    Cancelado: projects.filter((p) => p.status === 'Cancelado').length,
   };
 
-  const tasksByUser = mockUsers
+  const tasksByUser = users
     .filter((u) => u.role !== 'Cliente')
     .map((user) => {
-      const userTasks = mockTasks.filter((t) => t.assignee === user.id);
+      const userTasks = tasks.filter((t) => t.assignee === user.id);
       return {
         name: user.name,
         total: userTasks.length,
@@ -53,8 +56,8 @@ export default function Reports() {
     })
     .sort((a, b) => b.total - a.total);
 
-  const totalEstimatedHours = mockTasks.reduce((acc, t) => acc + (t.estimatedHours || 0), 0);
-  const totalActualHours = mockTasks.reduce((acc, t) => acc + (t.actualHours || 0), 0);
+  const totalEstimatedHours = tasks.reduce((acc, t) => acc + (t.estimatedHours || 0), 0);
+  const totalActualHours = tasks.reduce((acc, t) => acc + (t.actualHours || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -174,7 +177,7 @@ export default function Reports() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Tarefas por Status</h2>
           <div className="space-y-4">
             {Object.entries(tasksByStatus).map(([status, count]) => {
-              const percentage = mockTasks.length > 0 ? (count / mockTasks.length) * 100 : 0;
+              const percentage = tasks.length > 0 ? (count / tasks.length) * 100 : 0;
               const colors = {
                 'A fazer': 'bg-gray-500',
                 'Em progresso': 'bg-blue-500',

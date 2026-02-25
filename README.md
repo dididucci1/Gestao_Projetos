@@ -1,4 +1,4 @@
-# Sistema de Controle de Projetos
+# Maze
 
 Sistema completo de gestão e controle de projetos desenvolvido com React, TypeScript e Tailwind CSS.
 

@@ -35,15 +35,25 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <aside
         className={`${
-          isSidebarOpen ? 'w-64' : 'w-0'
+          isSidebarOpen ? 'w-64' : 'w-16'
         } bg-white border-r border-gray-200 transition-all duration-300 overflow-hidden`}
       >
         <div className="h-full flex flex-col">
-          {/* Logo */}
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-primary-600">
-              Controle de Projetos
-            </h1>
+          {/* Sidebar Header */}
+          <div className={`p-4 border-b border-gray-200 ${isSidebarOpen ? 'relative' : 'flex justify-center'}`}>
+            {isSidebarOpen && (
+              <h1 className="text-2xl font-bold text-primary-600 leading-tight text-center">
+                Maze
+              </h1>
+            )}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className={`p-2 hover:bg-gray-100 rounded-lg transition-colors ${
+                isSidebarOpen ? 'absolute right-4 top-1/2 -translate-y-1/2' : ''
+              }`}
+            >
+              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
 
           {/* Menu Items */}
@@ -56,14 +66,16 @@ export default function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                    isSidebarOpen ? 'space-x-3' : 'justify-center'
+                  } ${
                     isActive
                       ? 'bg-primary-50 text-primary-700 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
                   <Icon size={20} />
-                  <span>{item.label}</span>
+                  {isSidebarOpen && <span>{item.label}</span>}
                 </Link>
               );
             })}
@@ -71,46 +83,24 @@ export default function Layout({ children }: LayoutProps) {
 
           {/* User Info */}
           <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-3">
+            <div className={`flex items-center ${isSidebarOpen ? 'space-x-3' : 'justify-center'}`}>
               <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold">
                 JS
               </div>
-              <div>
-                <p className="font-medium text-gray-900">João Silva</p>
-                <p className="text-sm text-gray-500">Admin</p>
-              </div>
+              {isSidebarOpen && (
+                <div>
+                  <p className="font-medium text-gray-900">João Silva</p>
+                  <p className="text-sm text-gray-500">Admin</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-600">
-                {new Date().toLocaleDateString('pt-BR', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+      {/* Page Content */}
+      <div className="flex-1 overflow-auto">
+        <main className="p-6">{children}</main>
       </div>
     </div>
   );
